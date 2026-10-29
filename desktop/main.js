@@ -11,6 +11,8 @@
  *   حفظُ التسجيل الاحتياطي في Videos\CoachLab · نسخةُ ماك (dmg غير موقّع، إعلانٌ يدويّ للتحديث).
  * 🆕 28/10 (طلب Anzan): أزرارٌ عائمة أثناء المباشر (ui/toolbar.html + ui/panel.html) لا تظهر في البثّ ولا في مشاركة الشاشة
  *   (setContentProtection) · والوضعُ المصغّر ونافذةُ اختيار الشاشة محميّان كذلك.
+ * 🆕 29/10 (v7.7.5615، طلب Anzan): حين يشارك المضيفُ شاشتَه من الفصل ⇒ لوحةُ «الحاضرون فقط» صغيرةٌ محميّة فوق الشاشة بدل التصغير
+ *   (يراها المضيف ولا تظهر في المشاركة ولا في التسجيل)، وتعود النافذةُ حين تتوقّف المشاركة.
  */
 'use strict';
 const { app, BrowserWindow, session, desktopCapturer, ipcMain, shell, Tray, Menu, nativeImage, screen, powerSaveBlocker, Notification, globalShortcut } = require('electron');
@@ -246,25 +248,36 @@ function askLeave() {
 }
 
 /* ── الوضع المصغّر: 360×640 في زاوية الشاشة وفوق كلّ النوافذ ── */
-function toggleMini() {
+/* 🆕 v7.7.5615 (29/10) — طلبُ Anzan: «اجعل الحاضرين في مساحة لا تظهر في المشاركة». pip=true: حين يشارك المضيفُ شاشتَه من الفصل
+   تصير النافذةُ لوحةً صغيرة (300×520) فوق كلّ النوافذ، محميّةً من الالتقاط، لا تُظهر إلّا الحاضرين (الصفحة: clDeskMode('pip') ⇒ html.cl-pip)،
+   ولا تأخذ التركيز (PowerPoint يبقى أمامك). تعود النافذةُ كما كانت حين تتوقّف المشاركة. */
+function toggleMini(pip) {
   if (!win || win.isDestroyed()) return;
   if (mini) {
+    if (mini.pip) minByShare = false;
     win.setAlwaysOnTop(false);
     if (mini.max) win.maximize(); else win.setBounds(mini.bounds);
     mini = null;
   } else {
-    mini = { bounds: win.getBounds(), max: win.isMaximized() };
+    mini = { bounds: win.getBounds(), max: win.isMaximized(), pip: pip === true };
     if (win.isMaximized()) win.unmaximize();
     if (win.isFullScreen()) win.setFullScreen(false);
     const wa = screen.getDisplayMatching(win.getBounds()).workArea;
-    const w = 360, h = Math.min(640, wa.height - 24);
+    const w = mini.pip ? 300 : 360, h = Math.min(mini.pip ? 520 : 640, wa.height - 24);
     win.setBounds({ x: wa.x + wa.width - w - 12, y: wa.y + wa.height - h - 12, width: w, height: h });
     win.setAlwaysOnTop(true, 'floating');
-    showWin();
+    if (mini.pip) win.showInactive(); else showWin();
   }
   /* 🆕 28/10 — طلبُ Anzan: النافذةُ المصغّرة فوق الشاشة لا تظهر لمن يشاهد مشاركتَها (WDA_EXCLUDEFROMCAPTURE) */
   try { win.setContentProtection(!!mini); } catch (e) {}
+  deskMode();
   buildTray();
+}
+/* 🆕 v7.7.5615 — البرنامجُ ← الصفحة: وضعُ «الحاضرون فقط» أو العادي */
+function deskMode() {
+  if (!win || win.isDestroyed()) return;
+  const m = mini && mini.pip ? 'pip' : '';
+  win.webContents.executeJavaScript('window.clDeskMode&&window.clDeskMode(' + JSON.stringify(m) + ')').catch(() => {});
 }
 
 /* ── أيقونة شريط المهام ── */
@@ -287,7 +300,8 @@ function buildTray() {
     { label: 'الإغلاق يُبقي البرنامج هنا (للتنبيهات)', type: 'checkbox', checked: sget('closeToTray', true), click: m => { sset('closeToTray', m.checked); } },
     /* 🆕 28/10 — الأزرارُ العائمة أثناء المباشر، وتصغيرُ النافذة عند مشاركة الشاشة */
     { label: 'الأزرار العائمة أثناء المباشر', type: 'checkbox', checked: sget('floatBar', true), click: m => { sset('floatBar', m.checked); syncBar(); } },
-    { label: 'صغّر النافذة عند مشاركة الشاشة', type: 'checkbox', checked: sget('minOnShare', true), click: m => { sset('minOnShare', m.checked); } },
+    /* 🔄 v7.7.5615 — في الفصل: لوحةُ الحاضرين المحميّة بدل التصغير (المفتاحُ نفسُه minOnShare) */
+    { label: 'عند مشاركة الشاشة: صغّر النافذة (في الفصل: لوحة الحاضرين لا تظهر في المشاركة)', type: 'checkbox', checked: sget('minOnShare', true), click: m => { sset('minOnShare', m.checked); } },
     { label: 'تسجيلاتي على الحاسوب', click: () => { const d = recDir(); try { fs.mkdirSync(d, { recursive: true }); } catch (e) {} shell.openPath(d); } },
     ...(IS_STORE ? [] : [{ label: ready ? '🆕 حدّث الآن (' + ready + ')' : 'البحث عن تحديث', click: () => { if (ready) installNow(); else checkAll(true); } }]),
     { type: 'separator' },
@@ -342,7 +356,7 @@ function cleanState(s) {
   if (s.lb && typeof s.lb === 'object') Object.keys(s.lb).slice(0, 40).forEach(k => { if (/^[a-zA-Z]{1,12}$/.test(k)) lb[k] = str(s.lb[k], 60); });
   return {
     live: true, role: ['host', 'stage', 'member'].includes(s.role) ? s.role : '',
-    mic: b(s.mic), cam: b(s.cam), sharing: s.sharing === true,
+    mic: b(s.mic), cam: b(s.cam), sharing: s.sharing === true, pip: s.pip === true,   /* 🆕 v7.7.5615 — الصفحةُ تعرف وضعَ «الحاضرون فقط» */
     hands: (Array.isArray(s.hands) ? s.hands : []).slice(0, 30).map(h => ({ uid: Math.max(0, parseInt(h && h.uid, 10) || 0), name: str(h && h.name, 60) })).filter(h => h.uid > 0),
     unread: Math.max(0, Math.min(999, parseInt(s.unread, 10) || 0)),
     lastMsgs: (Array.isArray(s.lastMsgs) ? s.lastMsgs : []).slice(-12).map(m => ({ n: str(m && m.n, 60), t: str(m && m.t, 300), me: m && m.me ? 1 : 0 })),
@@ -421,13 +435,14 @@ let frontT = 0;
 function syncBarSoon() { clearTimeout(frontT); frontT = setTimeout(syncBar, 220); }
 function syncBar() {
   const live = !!(LIVE && inLive() && sget('floatBar', true));
-  const on = live && !winFront();
-  if (on) openBar(); else closeBar();
   /* مشاركةُ الشاشة بدأت ⇒ تصغيرُ نافذة البرنامج (الإعداد) — وتعود حين تتوقّف إن كنّا من صغّرها */
   const sh = !!(live && LIVE.sharing);
-  if (sh && !wasSharing && sget('minOnShare', true) && !mini && win && !win.isDestroyed() && win.isVisible() && !win.isMinimized()) { minByShare = true; win.minimize(); }
-  if (!sh && wasSharing && minByShare) { minByShare = false; if (win && !win.isDestroyed() && win.isMinimized()) win.restore(); }
+  /* 🔄 v7.7.5615 — صفحةُ الفصل (LIVE.pip) ⇒ لوحةُ الحاضرين المحميّة بدل التصغير؛ غيرُها (البثّ) ⇒ التصغيرُ كما كان */
+  if (sh && !wasSharing && sget('minOnShare', true) && !mini && win && !win.isDestroyed() && win.isVisible() && !win.isMinimized()) { minByShare = true; if (LIVE.pip) toggleMini(true); else win.minimize(); }
+  if (!sh && wasSharing && minByShare) { minByShare = false; if (mini && mini.pip) toggleMini(); else if (win && !win.isDestroyed() && win.isMinimized()) win.restore(); }
   wasSharing = sh;
+  const on = live && (!winFront() || !!(mini && mini.pip));   /* 🆕 v7.7.5615 — لوحةُ الحاضرين لا أزرارَ فيها ⇒ الشريطُ العائم يبقى */
+  if (on) openBar(); else closeBar();
   if (panelKind === 'chat' && LIVE && LIVE.unread > 0) pageCmd('seen');
   sendState();
 }
@@ -439,7 +454,7 @@ ipcMain.on('bar:cmd', (e, m) => {
   const ok = (bar && !bar.isDestroyed() && e.sender === bar.webContents) || (panel && !panel.isDestroyed() && e.sender === panel.webContents);
   if (!ok || !m || typeof m.c !== 'string') return;
   const c = m.c;
-  if (c === 'back') { minByShare = false; showWin(); return; }
+  if (c === 'back') { minByShare = false; if (mini && mini.pip) toggleMini(); showWin(); return; }
   if (c === 'panel') { if (m.a === 'hands' || m.a === 'chat') { openPanel(m.a); if (m.a === 'chat') pageCmd('seen'); } return; }
   if (c === 'panel-close') { closePanel(); sendState(); return; }
   if (c === 'size') {
@@ -718,7 +733,7 @@ function createWindow(ses) {
     syncBlocker();
   });
   wc.on('did-navigate-in-page', syncBlocker);
-  wc.on('did-finish-load', () => { syncBlocker(); injectHome(); if (ready) { if (!inLive()) injectReady(); } else injectBanner(); });
+  wc.on('did-finish-load', () => { syncBlocker(); if (mini && mini.pip) deskMode(); injectHome(); if (ready) { if (!inLive()) injectReady(); } else injectBanner(); });
   wc.on('page-title-updated', (e, t) => { e.preventDefault(); win.setTitle(t && t !== 'CoachLab Live' ? t + ' — CoachLab Live' : 'CoachLab Live'); });
   wc.on('did-fail-load', (_e, code, _d, url, isMain) => {
     if (!isMain || code === -3 || isInternal(url)) return;   /* -3 = تنقّلٌ أُلغي، ليس انقطاعاً */
@@ -745,7 +760,7 @@ function createWindow(ses) {
 ipcMain.on('cl:mini', () => toggleMini());
 ipcMain.on('cl:show', () => showWin());
 ipcMain.on('cl:download', () => { openOutside(update ? update.url : HOME + '/wp-content/uploads/cl-app/CoachLab-Live-Setup.exe'); });
-ipcMain.handle('cl:info', () => ({ version: app.getVersion(), mini: !!mini, update, ready, platform: process.platform }));
+ipcMain.handle('cl:info', () => ({ version: app.getVersion(), mini: !!mini, pip: !!(mini && mini.pip), update, ready, platform: process.platform }));
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
