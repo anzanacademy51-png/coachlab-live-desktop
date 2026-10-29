@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>CoachLab Live</title>
+<!-- 🆕 28/10 — طلبُ Anzan: «أزرار عائمة مكاتبانش فالبث المباشر». شريطٌ فوق كلّ النوافذ أثناء المباشر،
+     محميٌّ من الالتقاط (setContentProtection في main.js) ⇒ لا يظهر في مشاركة الشاشة ولا في التسجيل.
+     الأزرارُ ترسل bar:cmd إلى main.js، وmain.js ينفّذها في الصفحة (window.clDeskCmd). لا نوافذ تأكيد أصلية: التأكيدُ داخل الشريط. -->
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{background:transparent;height:100%;overflow:hidden;font-family:"Segoe UI",Tahoma,Arial,sans-serif;user-select:none}
+#bar{display:inline-flex;align-items:center;gap:3px;height:44px;padding:5px 6px;background:#1c1c1c;border:1px solid rgba(255,255,255,.12);border-radius:13px;color:#fff;white-space:nowrap}
+.grip{-webkit-app-region:drag;cursor:move;color:#64748b;font-size:15px;letter-spacing:-3px;padding:0 6px 0 2px;height:100%;display:flex;align-items:center}
+.tm{display:flex;align-items:center;gap:6px;padding:0 8px;font:800 12px "Segoe UI",Tahoma,sans-serif;color:#fecaca;font-variant-numeric:tabular-nums;-webkit-app-region:drag;height:100%}
+.tm i{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.25);animation:p 1.6s infinite}
+@keyframes p{50%{opacity:.35}}
+button{-webkit-app-region:no-drag;position:relative;min-width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:#fff;font:700 15px "Segoe UI Emoji","Segoe UI",sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 8px;gap:4px}
+button svg{width:17px;height:17px;display:block}
+button i{display:flex;font-style:normal}
+.end svg{width:13px;height:13px}
+button:hover{background:rgba(255,255,255,.1)}
+button.off{background:#7f1d1d;border-color:#b91c1c}
+button.act{background:#f4c430;color:#1c1c1c;border-color:#f4c430}
+button:disabled{opacity:.35;cursor:default}
+button .n{position:absolute;top:-5px;inset-inline-end:-5px;min-width:18px;height:18px;border-radius:9px;background:#ef4444;color:#fff;font:900 11px "Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;padding:0 4px}
+button .n:empty,button .n[data-z]{display:none}
+.end{background:#b91c1c;border-color:#b91c1c}
+.sep{width:1px;height:20px;background:rgba(255,255,255,.14);margin:0 2px}
+#cf{display:none;align-items:center;gap:6px;padding:0 4px;font:800 13px "Segoe UI",Tahoma,sans-serif}
+#cf button{font:800 12px "Segoe UI",Tahoma,sans-serif;padding:0 14px}
+#cf .yes{background:#b91c1c;border-color:#b91c1c}
+#bar.cf #btns{display:none}
+#bar.cf #cf{display:flex}
+#btns{display:flex;align-items:center;gap:4px}
+</style>
+</head>
+<body>
+<div id="bar">
+  <span class="grip" title="">⋮⋮</span>
+  <span class="tm"><i></i><b id="tm">00:00</b></span>
+  <div id="btns">
+    <button type="button" id="mic"><i id="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></i></button>
+    <button type="button" id="cam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></button>
+    <button type="button" id="share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M9 10l3-3 3 3M12 7v6"/></svg></button>
+    <button type="button" id="hands"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg><span class="n" id="hn"></span></button>
+    <button type="button" id="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg><span class="n" id="cn"></span></button>
+    <span class="sep"></span>
+    <button type="button" id="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+    <button type="button" id="end" class="end"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></button>
+  </div>
+  <div id="cf"><span id="cfq"></span><button type="button" class="yes" id="yes"></button><button type="button" id="no"></button></div>
+</div>
+<script>
+'use strict';
+var S = {}, $ = function (i) { return document.getElementById(i); };
+function L(k, d) { return (S.lb && S.lb[k]) || d; }
+function send(c, a) { if (window.clUI) clUI.send('bar:cmd', { c: c, a: a }); }
+var DEF = { mic: 'الميكروفون', cam: 'الكاميرا', share: 'مشاركة الشاشة', stop: 'إيقاف المشاركة', hands: 'الأيدي المرفوعة', chat: 'الدردشة',
+  back: 'العودة إلى نافذة البرنامج', sure: 'تأكيد؟', yes: 'نعم', no: 'لا', endBc: 'إنهاء البثّ', endStage: 'النزول من المنصّة', endAll: 'إنهاء الحصّة للجميع', leave: 'مغادرة' };
+function tip(id, k) { var b = $(id); var t = L(k, DEF[k]); b.title = t; b.setAttribute('aria-label', t); }
+function fit() { var w = Math.ceil($('bar').getBoundingClientRect().width) + 2; if (w !== fit.w) { fit.w = w; send('size', w); } }
+/* 🔄 28/10 — أيقوناتٌ خطّيّة دقيقة بدل الإيموجي (طلبُ Anzan) */
+var SVH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">';
+var MIC_ON = SVH + '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>', MIC_OFF = SVH + '<path d="M2 2l20 20M18.9 13A7 7 0 0 0 19 11v-1M5 10v1a7 7 0 0 0 11.1 5.7M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 5.1 2.1M12 18v4"/></svg>';
+var cfT = 0;
+function confirmOff() { $('bar').classList.remove('cf'); clearTimeout(cfT); fit(); }
+function draw() {
+  var host = S.role === 'host';
+  var mic = $('mic'); mic.disabled = S.mic === null || S.mic === undefined; var mw = S.mic === false ? 'off' : 'on'; if (mic.__s !== mw) { mic.__s = mw; $('mi').innerHTML = mw === 'off' ? MIC_OFF : MIC_ON; } mic.classList.toggle('off', S.mic === false); tip('mic', 'mic');
+  var cam = $('cam'); cam.disabled = S.cam === null || S.cam === undefined; cam.classList.toggle('off', S.cam === false); tip('cam', 'cam');
+  var sh = $('share'); sh.classList.toggle('act', !!S.sharing); tip('share', S.sharing ? 'stop' : 'share');
+  var hs = (S.hands || []).length, hb = $('hands');
+  hb.style.display = host ? '' : 'none'; hb.classList.toggle('act', S.panel === 'hands'); $('hn').textContent = hs ? String(hs) : ''; tip('hands', 'hands');
+  var cb = $('chat'); cb.classList.toggle('act', S.panel === 'chat'); $('cn').textContent = S.unread ? String(Math.min(99, S.unread)) : ''; tip('chat', 'chat');
+  tip('back', 'back'); tip('end', S.end || 'leave');
+  $('cfq').textContent = L(S.end || 'leave', DEF[S.end || 'leave']) + ' — ' + L('sure', DEF.sure);
+  $('yes').textContent = L('yes', DEF.yes); $('no').textContent = L('no', DEF.no);
+  tick(); fit();
+}
+function two(n) { return (n < 10 ? '0' : '') + n; }
+function tick() {
+  var s = S.since ? Math.max(0, Math.floor((Date.now() - S.since) / 1000)) : 0, h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  $('tm').textContent = (h ? h + ':' + two(m) : two(m)) + ':' + two(s % 60);
+}
+setInterval(tick, 1000);
+$('mic').onclick = function () { send('mic'); };
+$('cam').onclick = function () { send('cam'); };
+$('share').onclick = function () { send(S.sharing ? 'stopshare' : 'share'); };
+$('hands').onclick = function () { send('panel', 'hands'); };
+$('chat').onclick = function () { send('panel', 'chat'); };
+$('back').onclick = function () { send('back'); };
+/* الإنهاءُ بخطوتين داخل الشريط (لا confirm أصليّ) — يعود وحده بعد 6 ث */
+$('end').onclick = function () { $('bar').classList.add('cf'); fit(); clearTimeout(cfT); cfT = setTimeout(confirmOff, 6000); };
+$('no').onclick = confirmOff;
+$('yes').onclick = function () { confirmOff(); send('end'); };
+if (window.clUI) clUI.onState(function (d) { S = d || {}; draw(); });
+draw();
+</script>
+</body>
+</html>

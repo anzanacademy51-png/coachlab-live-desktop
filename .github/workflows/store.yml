@@ -1,0 +1,72 @@
+name: CoachLab Live Store
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  store:
+    # 🔄 28/10 — حزمةُ Microsoft Store يدويّةٌ فقط حتى تصل هويّةُ Partner Center (توفيرُ دقائق Actions)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+    env:
+      V: 1.0.${{ github.run_number }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      MS_IDENTITY_NAME: ${{ vars.MS_IDENTITY_NAME || 'CoachLab.CoachLabLive' }}
+      MS_PUBLISHER: ${{ vars.MS_PUBLISHER || 'CN=46695068-98CB-4195-8B8F-9AC4EC4298ED' }}
+      MS_PUBLISHER_NAME: ${{ vars.MS_PUBLISHER_NAME || 'CoachLab' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: أيقونات Store (من icon-512.png على الكحلي)
+        run: |
+          python -m pip install -q pillow
+          mkdir -p desktop/build/appx
+          python - <<'PY'
+          from PIL import Image
+          src = Image.open('assets/icon-512.png').convert('RGBA')
+          NAVY = (28, 28, 28, 255)   # 🔄 29/10 — خلفيةٌ محايدة (طلب Anzan: لا أزرق)
+          def tile(w, h, scale, name):
+              im = Image.new('RGBA', (w, h), NAVY)
+              s = int(min(w, h) * scale)
+              ic = src.resize((s, s), Image.LANCZOS)
+              im.alpha_composite(ic, ((w - s) // 2, (h - s) // 2))
+              im.save('desktop/build/appx/' + name)
+          tile(50, 50, 0.9, 'StoreLogo.png')
+          tile(44, 44, 0.9, 'Square44x44Logo.png')
+          tile(150, 150, 0.7, 'Square150x150Logo.png')
+          tile(310, 150, 0.7, 'Wide310x150Logo.png')
+          tile(310, 310, 0.6, 'LargeTile.png')
+          tile(620, 300, 0.6, 'SplashScreen.png')
+          src.resize((256, 256), Image.LANCZOS).save('desktop/icon.png')
+          src.save('desktop/build/icon.ico', sizes=[(16,16),(32,32),(48,48),(256,256)])
+          PY
+          ls -la desktop/build/appx
+      - name: بناء حزمة Store (appx x64)
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npm version "$V" --no-git-tag-version --allow-same-version
+          # نسخةُ appx رباعية (1.0.N.0)
+          if [ -n "$MS_IDENTITY_NAME" ] && [ -n "$MS_PUBLISHER" ]; then
+            node -e "const f='package.json',j=require('./'+f);j.build.appx.identityName=process.env.MS_IDENTITY_NAME;j.build.appx.publisher=process.env.MS_PUBLISHER;if(process.env.MS_PUBLISHER_NAME)j.build.appx.publisherDisplayName=process.env.MS_PUBLISHER_NAME;require('fs').writeFileSync(f,JSON.stringify(j,null,2));"
+            echo "::notice::Store: هويّةُ Partner Center مضبوطة ⇒ الحزمة صالحةٌ للرفع إلى Partner Center"
+          else
+            echo "::notice::Store: لا هويّة بعد (MS_IDENTITY_NAME / MS_PUBLISHER) ⇒ حزمةُ تجربةٍ بهويّةٍ مؤقّتة — لا تُرفع إلى Store"
+          fi
+          if ! npx electron-builder --win appx --x64 --publish never > ../eb-store.log 2>&1; then tail -60 ../eb-store.log; echo "::error::$(grep -iE 'error|failed|cannot' ../eb-store.log | head -8 | tr '\n' '|' | cut -c1-900)"; exit 1; fi
+          ls -la dist
+          P=$(ls dist/*.appx | head -1); test -n "$P"
+          mkdir -p ../appx-check && cd ../appx-check && unzip -o -q "../desktop/$P" AppxManifest.xml && grep -oE '<Identity[^>]*>|uap:Protocol Name="[^"]*"' AppxManifest.xml || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coachlab-live-store
+          path: desktop/dist/*.appx
+          if-no-files-found: error
+          retention-days: 30

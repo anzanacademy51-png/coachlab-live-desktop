@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>مشاركة الشاشة — CoachLab Live</title>
+<style>
+:root{--bg:#0a1628;--card:#13233f;--line:rgba(255,255,255,.14);--gold:#f4c430;--txt:#fff;--mut:#94a3b8}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+body{display:flex;flex-direction:column}
+header{padding:14px 18px 6px}
+h1{margin:0;font-size:17px;color:var(--gold)}
+.tabs{display:flex;gap:8px;padding:8px 18px}
+.tabs button{background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:6px 16px;font:700 13px inherit;font-family:inherit;cursor:pointer}
+.tabs button.on{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+main{flex:1;overflow-y:auto;padding:8px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-content:start;min-height:0}
+.it{background:var(--card);border:2px solid transparent;border-radius:12px;padding:8px;cursor:pointer;text-align:start;color:inherit;font-family:inherit;min-width:0}
+.it:hover{border-color:var(--line)}
+.it.sel{border-color:var(--gold)}
+.it .th{aspect-ratio:16/9;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.it .th img{max-width:100%;max-height:100%}
+.it .nm{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;min-width:0}
+.it .nm img{width:16px;height:16px;flex:none}
+.it .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.empty{grid-column:1/-1;color:var(--mut);text-align:center;padding:40px 0}
+footer{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+footer label{flex:1;font-size:13px;color:#e2e8f0;display:flex;align-items:center;gap:6px;min-width:180px}
+footer button{min-height:40px;border-radius:10px;padding:0 20px;font:800 14px inherit;font-family:inherit;cursor:pointer;border:1px solid var(--line);background:transparent;color:#fff}
+footer .go{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+footer .go:disabled{opacity:.45;cursor:default}
+</style>
+</head>
+<body>
+<header><h1>🖥️ اختر ما تريد مشاركته</h1></header>
+<div class="tabs" role="tablist">
+  <button type="button" data-t="screen" class="on">الشاشة كاملة</button>
+  <button type="button" data-t="window">نافذة</button>
+</div>
+<main id="grid"></main>
+<footer>
+  <label id="aud-l"><input type="checkbox" id="aud"> مشاركة صوت الحاسوب أيضاً</label>
+  <button type="button" id="cancel">إلغاء</button>
+  <button type="button" id="go" class="go" disabled>شارك</button>
+</footer>
+<script>
+(function () {
+  var all = [], tab = 'screen', sel = '';
+  var grid = document.getElementById('grid'), go = document.getElementById('go');
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function draw() {
+    var L = all.filter(function (s) { return tab === 'screen' ? s.screen : !s.screen; });
+    if (!L.length) { grid.innerHTML = '<div class="empty">لا شيء هنا</div>'; return; }
+    grid.innerHTML = L.map(function (s, i) {
+      var nm = s.screen ? (L.length > 1 ? 'الشاشة ' + (i + 1) : 'الشاشة كاملة') : s.name;
+      return '<button type="button" class="it' + (s.id === sel ? ' sel' : '') + '" data-id="' + esc(s.id) + '"><div class="th">' + (s.thumb ? '<img alt="" src="' + s.thumb + '">' : '') + '</div><div class="nm">' + (s.icon ? '<img alt="" src="' + s.icon + '">' : '') + '<span>' + esc(nm) + '</span></div></button>';
+    }).join('');
+  }
+  grid.addEventListener('click', function (e) { var b = e.target.closest('.it'); if (!b) return; sel = b.getAttribute('data-id'); go.disabled = false; draw(); });
+  grid.addEventListener('dblclick', function (e) { var b = e.target.closest('.it'); if (b) { sel = b.getAttribute('data-id'); send(); } });
+  document.querySelector('.tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return; tab = b.getAttribute('data-t');
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+    draw();
+  });
+  function send() { if (sel) window.clUI.send('picker:choice', { id: sel, audio: document.getElementById('aud').checked }); }
+  go.onclick = send;
+  document.getElementById('cancel').onclick = function () { window.clUI.send('picker:choice', null); };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.clUI.send('picker:choice', null); else if (e.key === 'Enter') send(); });
+  window.clUI.onInit(function (d) {
+    all = (d && d.sources) || [];
+    if (!d || !d.win) document.getElementById('aud-l').style.display = 'none';
+    var scr = all.filter(function (s) { return s.screen; });
+    if (scr.length === 1) { sel = scr[0].id; go.disabled = false; }
+    draw();
+  });
+})();
+</script>
+</body>
+</html>

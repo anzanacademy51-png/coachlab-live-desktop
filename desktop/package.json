@@ -1,0 +1,116 @@
+{
+  "name": "coachlab-live",
+  "productName": "CoachLab Live",
+  "version": "1.0.0",
+  "description": "CoachLab Live - برنامج المباشر لويندوز وماك",
+  "author": "ANZAN SARL",
+  "homepage": "https://coachlab.ma/",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --universal --publish never",
+    "dist:store": "electron-builder --win appx --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "ma.coachlab.desktop",
+    "productName": "CoachLab Live",
+    "copyright": "ANZAN SARL",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-ui.js",
+      "ui/**",
+      "icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "protocols": [
+      {
+        "name": "CoachLab",
+        "schemes": [
+          "coachlab"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "CoachLab-Live-Setup.${ext}",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CoachLab Live",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://coachlab.ma/wp-content/uploads/cl-app/"
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.education",
+      "artifactName": "CoachLab-Live.${ext}",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSCameraUsageDescription": "CoachLab Live uses the camera for live sessions.",
+        "NSMicrophoneUsageDescription": "CoachLab Live uses the microphone for live sessions."
+      }
+    },
+    "dmg": {
+      "artifactName": "CoachLab-Live.${ext}"
+    },
+    "appx": {
+      "identityName": "ANZANSARL.CoachLabLive",
+      "publisher": "CN=00000000-0000-0000-0000-000000000000",
+      "publisherDisplayName": "ANZAN SARL",
+      "applicationId": "CoachLabLive",
+      "displayName": "CoachLab Live",
+      "backgroundColor": "#1C1C1C",
+      "showNameOnTiles": true,
+      "languages": [
+        "ar-MA",
+        "fr-FR",
+        "en-US"
+      ],
+      "artifactName": "CoachLab-Live-Store.${ext}"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "6.3.9"
+  }
+}

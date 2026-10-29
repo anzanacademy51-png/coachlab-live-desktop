@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>CoachLab Live</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0a1628;color:#fff;font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+body{display:flex;flex-direction:column;justify-content:center;padding:20px 22px;gap:10px}
+h1{margin:0;font-size:18px;color:#f4c430}
+p{margin:0;font-size:13.5px;line-height:1.8;color:#e2e8f0}
+.b{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+button{min-height:42px;border-radius:10px;font:800 14px inherit;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff}
+.stay{background:#f4c430;color:#0a1628;border-color:#f4c430}
+.leave{background:#b91c1c;border-color:#b91c1c}
+</style>
+</head>
+<body>
+<h1>🔴 أنت في المباشر الآن</h1>
+<p>إن أغلقت البرنامج ستغادر الحصة ويتوقف الصوت والصورة. يمكنك إخفاؤه في شريط المهام ويبقى المباشر يعمل.</p>
+<div class="b">
+  <button type="button" class="stay" data-a="stay" autofocus>ابقَ في المباشر</button>
+  <button type="button" data-a="tray">إخفاء في شريط المهام</button>
+  <button type="button" class="leave" data-a="leave">غادر وأغلق البرنامج</button>
+</div>
+<script>
+document.querySelector('.b').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) window.clUI.send('confirm:answer', b.getAttribute('data-a')); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.clUI.send('confirm:answer', 'stay'); });
+</script>
+</body>
+</html>

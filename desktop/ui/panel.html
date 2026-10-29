@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>CoachLab Live</title>
+<!-- 🆕 28/10 — لوحةُ الأزرار العائمة (✋ الأيدي أو 💬 الدردشة) — نافذةٌ مستقلّة محميّة من الالتقاط مثل الشريط (main.js). -->
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{background:transparent;height:100%;overflow:hidden;font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+#p{height:100%;display:flex;flex-direction:column;background:rgba(10,22,40,.97);border:1px solid rgba(244,196,48,.45);border-radius:16px;color:#fff;overflow:hidden}
+header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.1);-webkit-app-region:drag}
+header h1{flex:1;font-size:14px;color:#f4c430;font-weight:800}
+header button{-webkit-app-region:no-drag;width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:transparent;color:#fff;font-size:14px;cursor:pointer}
+main{flex:1;overflow-y:auto;padding:8px 12px;min-height:0}
+.m{color:#94a3b8;font-size:13px;text-align:center;padding:24px 0}
+.hr{display:flex;align-items:center;gap:6px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+.hr:first-child{border-top:0}
+.hr .i{color:#f4c430;font-weight:900;min-width:18px;font-size:13px}
+.hr .nm{flex:1;min-width:0;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hr button{min-height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fff;font:700 12px "Segoe UI",Tahoma,sans-serif;padding:0 9px;cursor:pointer;white-space:nowrap}
+.hr button.g{background:#f4c430;color:#0a1628;border-color:#f4c430}
+.hr button:disabled{opacity:.4}
+.cm{padding:6px 0;font-size:13px;line-height:1.6;border-top:1px solid rgba(255,255,255,.06);word-wrap:break-word}
+.cm:first-child{border-top:0}
+.cm b{color:#f4c430;font-weight:800}
+.cm.me b{color:#86efac}
+form{display:none;gap:6px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.1)}
+form.on{display:flex}
+input{flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;padding:0 10px;font:600 13px "Segoe UI",Tahoma,sans-serif;outline:none}
+input:focus{border-color:#f4c430}
+form button{height:38px;border-radius:10px;border:0;background:#f4c430;color:#0a1628;font:800 13px "Segoe UI",Tahoma,sans-serif;padding:0 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="p">
+  <header><h1 id="h"></h1><button type="button" id="x">✕</button></header>
+  <main id="b"></main>
+  <form id="f" autocomplete="off"><input id="in" maxlength="500"><button type="submit" id="s"></button></form>
+</div>
+<script>
+'use strict';
+var S = {}, $ = function (i) { return document.getElementById(i); }, kind = '', sig = '';
+var DEF = { hands: 'الأيدي المرفوعة', chat: 'الدردشة', none: 'لا أيدي مرفوعة', nochat: 'لا رسائل بعد', give: 'أعطه الكلمة', lower: 'أنزل', send: 'إرسال', typing: 'اكتب رسالة…', close: 'إغلاق' };
+function L(k) { return (S.lb && S.lb[k]) || DEF[k]; }
+function send(c, a) { if (window.clUI) clUI.send('bar:cmd', { c: c, a: a }); }
+function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function draw() {
+  kind = S.panel === 'chat' ? 'chat' : 'hands';
+  $('h').textContent = (kind === 'chat' ? L('chat') : L('hands') + ' (' + (S.hands || []).length + ')');
+  $('x').title = L('close'); $('x').setAttribute('aria-label', L('close'));
+  $('f').classList.toggle('on', kind === 'chat'); $('s').textContent = L('send'); $('in').placeholder = L('typing');
+  var b = $('b'), list = kind === 'chat' ? (S.lastMsgs || []) : (S.hands || []);
+  var nsig = kind + JSON.stringify(list); if (nsig === sig) return; sig = nsig;
+  b.textContent = '';
+  if (!list.length) { b.appendChild(el('p', 'm', kind === 'chat' ? L('nochat') : L('none'))); return; }
+  if (kind === 'chat') {
+    list.forEach(function (m) { var d = el('div', 'cm' + (m.me ? ' me' : '')); d.appendChild(el('b', '', m.n)); d.appendChild(document.createTextNode(' ' + m.t)); b.appendChild(d); });
+    b.scrollTop = b.scrollHeight; return;
+  }
+  list.forEach(function (h, i) {
+    var r = el('div', 'hr'); r.appendChild(el('span', 'i', String(i + 1))); r.appendChild(el('span', 'nm', h.name));
+    var g = el('button', 'g', L('give')); g.type = 'button'; g.onclick = function () { g.disabled = true; send('hand-give', h.uid); };
+    var d = el('button', '', L('lower')); d.type = 'button'; d.onclick = function () { d.disabled = true; send('hand-lower', h.uid); };
+    r.appendChild(g); r.appendChild(d); b.appendChild(r);
+  });
+}
+$('x').onclick = function () { send('panel-close'); };
+$('f').onsubmit = function (e) { e.preventDefault(); var t = $('in').value.trim(); if (!t) return; send('chat-send', t.slice(0, 500)); $('in').value = ''; };
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') send('panel-close'); });
+if (window.clUI) clUI.onState(function (d) { var was = kind; S = d || {}; draw(); if (kind === 'chat' && was !== 'chat') setTimeout(function () { $('in').focus(); }, 50); });
+draw();
+</script>
+</body>
+</html>
